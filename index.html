@@ -7,12 +7,14 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: sans-serif; background: #f8f9fa; padding: 20px; margin: 0; }
-        .box { background: white; padding: 20px; border-radius: 12px; max-width: 400px; margin: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .box { background: white; padding: 20px; border-radius: 12px; max-width: 450px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 18px; background: #007bff; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 10px; }
+        button { width: 100%; padding: 18px; background: #007bff; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
         .list { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; }
-        .item { background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; display: flex; justify-content: space-between; font-size: 14px; }
-        .tag { background: #e9ecef; padding: 4px 8px; border-radius: 5px; font-family: monospace; font-size: 12px; }
+        .item { background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #eee; margin-bottom: 12px; }
+        .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .copy-btn { background: #28a745; padding: 8px 12px; font-size: 12px; border-radius: 6px; width: auto; margin: 0; }
+        pre { background: #272822; color: #f8f8f2; padding: 10px; border-radius: 8px; font-size: 11px; overflow-x: auto; display: none; }
     </style>
 </head>
 <body>
@@ -20,7 +22,7 @@
         <h3>Connect New Page</h3>
         <input type="text" id="pageName" placeholder="Page Name (e.g. Bumper)">
         <input type="text" id="listId" placeholder="EmailOctopus List ID">
-        <button onclick="save()">SAVE CONNECTION</button>
+        <button onclick="save()">SAVE & GENERATE CODE</button>
 
         <div class="list">
             <h3>Connected Pages</h3>
@@ -31,40 +33,43 @@
     <script>
         const client = supabase.createClient('https://sakmxnvvsdeqvdzggrrj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNha214bnZ2c2RlcXZkemdncnJqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjM4NzkzOCwiZXhwIjoyMDg3OTYzOTM4fQ.kQSFQhm1r_Hh5jHvyUrZeox9tqKfFtiMLWgfjtAUsqI');
 
-        // Function to see the list on your screen
+        function generateSnippet(name) {
+            return `<form onsubmit="event.preventDefault(); const d=Object.fromEntries(new FormData(event.target)); fetch('https://sakmxnvvsdeqvdzggrrj.supabase.co/functions/v1/swift-function',{method:'POST',body:JSON.stringify(d)}).then(()=>alert('Success!'));">
+  <input type="email" name="email" placeholder="Email" required>
+  <input type="hidden" name="page_name" value="${name}">
+  <button type="submit">Join</button>
+</form>`;
+        }
+
         async function showList() {
             const { data } = await client.from('app_mappings').select('*').order('page_name', { ascending: true });
             const display = document.getElementById('displayArea');
             if (data && data.length > 0) {
                 display.innerHTML = data.map(i => `
                     <div class="item">
-                        <strong>${i.page_name}</strong>
-                        <span class="tag">${i.eo_list_id.substring(0,8)}...</span>
+                        <div class="item-header">
+                            <strong>${i.page_name}</strong>
+                            <button class="copy-btn" onclick="toggleCode('${i.page_name}')">GET CODE</button>
+                        </div>
+                        <pre id="code-${i.page_name}">${generateSnippet(i.page_name).replace(/</g, '&lt;')}</pre>
                     </div>
                 `).join('');
-            } else {
-                display.innerHTML = "No pages connected yet.";
-            }
+            } else { display.innerHTML = "No pages connected yet."; }
+        }
+
+        function toggleCode(id) {
+            const el = document.getElementById('code-' + id);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
         }
 
         async function save() {
             const page_name = document.getElementById('pageName').value;
             const eo_list_id = document.getElementById('listId').value;
             if (!page_name || !eo_list_id) return alert("Fill both fields!");
-
             const { error } = await client.from('app_mappings').upsert({ page_name, eo_list_id });
-            if (error) {
-                alert("Error saving!");
-            } else {
-                alert("Success!");
-                document.getElementById('pageName').value = '';
-                document.getElementById('listId').value = '';
-                showList(); // Refresh list immediately
-            }
+            if (!error) { alert("Success!"); showList(); }
         }
-
-        showList(); // Load list when you open the page
+        showList();
     </script>
 </body>
 </html>
-
